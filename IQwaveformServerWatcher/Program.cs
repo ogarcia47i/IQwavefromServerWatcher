@@ -16,19 +16,14 @@ namespace IQwaveformServerWatcher
         static void Main(string[] args)
         {
             Init();
-            while (true)
-            {
-                Console.WriteLine("TYPE SOMETHING");
-                string line = Console.ReadLine();
-                Console.WriteLine("TYPED: " + line);
-            }
         }
 
         /// <summary>
         /// Watcher.
         /// </summary>
-        static FileSystemWatcher _watcher;
-        static string directory = @"\\cifs.casinas03.lvn.broadcom.net\cifs\wsd_iqdata\iqwavedata\Released";
+        //static FileSystemWatcher _watcher;
+        static string directory = @"\\cifs.casinas03.lvn.broadcom.net\cifs\wsd_iqdata\iqwavedata\Released\WCDMA";
+        //static string directory = @"C:\Avago.ATF.2.2.6\Data\TestPlans_SupportFiles\FlexTest";
         static string iqFolderStructureFilename = "ByFolderStructure.xml";
         /// <summary>
         /// Init.
@@ -36,11 +31,32 @@ namespace IQwaveformServerWatcher
         static void Init()
         {
             Console.WriteLine("INIT");
-            Program._watcher = new FileSystemWatcher(directory);
-            Program._watcher.Changed +=
-                new FileSystemEventHandler(Program._watcher_Changed);
-            Program._watcher.EnableRaisingEvents = true;
-            Program._watcher.IncludeSubdirectories = true;
+            using (FileSystemWatcher _watcher = new FileSystemWatcher())
+            {
+                _watcher.Path = directory;
+                _watcher.IncludeSubdirectories = true;
+
+                //                _watcher.Changed += new FileSystemEventHandler(Program._watcher_Changed);
+                _watcher.NotifyFilter = NotifyFilters.LastAccess
+                                    | NotifyFilters.LastWrite
+                                    | NotifyFilters.FileName
+                                    | NotifyFilters.DirectoryName;
+
+                _watcher.Changed += new FileSystemEventHandler(Program._watcher_Changed);
+                _watcher.Created += new FileSystemEventHandler(Program._watcher_Changed);
+                _watcher.Deleted += new FileSystemEventHandler(Program._watcher_Changed);
+                _watcher.Renamed += new RenamedEventHandler(Program._watcher_Renamed);
+                _watcher.Filter = "*.*";
+                _watcher.InternalBufferSize = 32768;
+                //Program._watcher.Created += new FileSystemEventHandler(Program.fileSystemWatcher1_Created);
+                //Program._watcher.Renamed += new RenamedEventHandler(Program.fileSystemWatcher1_Renamed);
+                //Program._watcher.Deleted += new FileSystemEventHandler(Program.fileSystemWatcher1_Deleted);
+                _watcher.EnableRaisingEvents = true;
+
+                // Wait for the user to quit the program.
+                Console.WriteLine("Press 'q' to quit the sample.");
+                while (Console.Read() != 'q') ;
+            }
         }
 
         /// <summary>
@@ -48,21 +64,31 @@ namespace IQwaveformServerWatcher
         /// </summary>
         static void _watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            Console.WriteLine("CHANGED, NAME: " + e.Name);
-            Console.WriteLine("CHANGED, FULLPATH: " + e.FullPath);
-            string remoteXmlStructureFile = Path.Combine(directory, iqFolderStructureFilename);
+            //Console.WriteLine(string.Format("Changed: {0} {1}", e.FullPath, e.ChangeType));
 
-            var iqXml = new IqXmlToTreeView(remoteXmlStructureFile);
+            if (e.ChangeType != WatcherChangeTypes.Changed)
+            {
+                UpdateXml();
+                Console.WriteLine(string.Format("Changed: {0} {1}", e.FullPath, e.ChangeType));
+                Console.WriteLine("Update ByFolderStructure.xml is complete");
 
-            iqXml.UpdateXml(directory);
+            }
 
-            //CopyIqStructureFileToLocal();
-   
 
-            Console.WriteLine("Update ByFolderStructure.xml is complete");
-
-            // Can change program state (set invalid state) in this method.
-            // ... Better to use insensitive compares for file names.
         }
+        static void _watcher_Renamed(object sender, RenamedEventArgs e)
+        {
+            // FullPath is the new file name.
+            UpdateXml();
+            Console.WriteLine(string.Format("Renamed: {0} {1}", e.FullPath, e.ChangeType));
+        }
+
+        static void UpdateXml()
+        {
+            string remoteXmlStructureFile = Path.Combine(directory, iqFolderStructureFilename);
+            var iqXml = new IqXmlToTreeView(remoteXmlStructureFile);
+            iqXml.UpdateXml(directory);
+        }
+
     }
 }
