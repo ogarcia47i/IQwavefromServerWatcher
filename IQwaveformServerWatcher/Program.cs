@@ -21,8 +21,7 @@ namespace IQwaveformServerWatcher
         /// <summary>
         /// Watcher.
         /// </summary>
-        //static FileSystemWatcher _watcher;
-        static string directory = @"\\cifs.casinas03.lvn.broadcom.net\cifs\wsd_iqdata\iqwavedata\Released\WCDMA";
+        static string directory = @"\\cifs.casinas03.lvn.broadcom.net\cifs\wsd_iqdata\iqwavedata\Released";
         //static string directory = @"C:\Avago.ATF.2.2.6\Data\TestPlans_SupportFiles\FlexTest";
         static string iqFolderStructureFilename = "ByFolderStructure.xml";
         /// <summary>
@@ -30,7 +29,13 @@ namespace IQwaveformServerWatcher
         /// </summary>
         static void Init()
         {
-            Console.WriteLine("INIT");
+            try
+            {
+
+            }
+            catch (Exception e)
+            {
+            }
             using (FileSystemWatcher _watcher = new FileSystemWatcher())
             {
                 _watcher.Path = directory;
@@ -48,13 +53,10 @@ namespace IQwaveformServerWatcher
                 _watcher.Renamed += new RenamedEventHandler(Program._watcher_Renamed);
                 _watcher.Filter = "*.*";
                 _watcher.InternalBufferSize = 32768;
-                //Program._watcher.Created += new FileSystemEventHandler(Program.fileSystemWatcher1_Created);
-                //Program._watcher.Renamed += new RenamedEventHandler(Program.fileSystemWatcher1_Renamed);
-                //Program._watcher.Deleted += new FileSystemEventHandler(Program.fileSystemWatcher1_Deleted);
                 _watcher.EnableRaisingEvents = true;
 
                 // Wait for the user to quit the program.
-                Console.WriteLine("Press 'q' to quit the sample.");
+               Console.WriteLine("Press 'q' to quit the sample.");
                 while (Console.Read() != 'q') ;
             }
         }
@@ -62,16 +64,24 @@ namespace IQwaveformServerWatcher
         /// <summary>
         /// Handler.
         /// </summary>
+        /// 
+        private static string[] extensions = { ".txt", ".zip"};
         static void _watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            //Console.WriteLine(string.Format("Changed: {0} {1}", e.FullPath, e.ChangeType));
+            var ext = (Path.GetExtension(e.FullPath) ?? string.Empty).ToLower();
 
-            if (e.ChangeType != WatcherChangeTypes.Changed)
+            if (extensions.Any(ext.Equals))
             {
-                UpdateXml();
-                Console.WriteLine(string.Format("Changed: {0} {1}", e.FullPath, e.ChangeType));
-                Console.WriteLine("Update ByFolderStructure.xml is complete");
+                // initialize the value of filename 
+                string filename = null;
 
+                // using the method 
+                filename = Path.GetFileName(e.FullPath);
+                if (filename == "comment_v2.txt" || ext == ".zip")
+                {
+                    UpdateXml();
+                    OpenLog(e);
+                }
             }
 
 
@@ -90,5 +100,26 @@ namespace IQwaveformServerWatcher
             iqXml.UpdateXml(directory);
         }
 
+        static void OpenLog(FileSystemEventArgs e)
+        {
+            string path = @"c:\temp\IQwaveformLog.txt";
+
+            if (!File.Exists(path))
+            {
+                using (StreamWriter sw = File.CreateText(path))
+                {
+                    sw.WriteLine("IQ Waveform Folder Structer Log\n\n");
+                }
+            }
+            // Create a file to write to.
+            using (StreamWriter sw = File.AppendText(path))
+            {
+                sw.WriteLine(string.Format("Changed: {0} {1}", e.FullPath, e.ChangeType));
+                sw.WriteLine("Date Modified: " + DateTime.Now);
+                sw.WriteLine("Update ByFolderStructure.xml is complete");
+                sw.WriteLine("-----------------------------------\n");
+
+            }            
+        }
     }
 }
